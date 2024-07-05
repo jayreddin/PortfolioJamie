@@ -1,0 +1,136 @@
+
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Facebook Album</title>
+
+    <link rel="stylesheet" href="./assets/css/style.css">
+  <!--  <style>
+        .carousel-container {
+            text-align: center;
+        }
+        .carousel-container img {
+            max-width: 100%;
+            height: auto;
+        }
+        .loading {
+            text-align: center;
+            margin-top: 20px;
+        }
+    </style> -->
+</head>
+<body>
+    <div id="albumName"></div>
+    <div id="photoCount"></div>
+    <div id="carousel" class="carousel-container"></div>
+
+    <script>
+        const albumNames = {
+            plumbing: '115661660114172',
+            electrical: '115681540112184',
+            carpentry: '115681880112150',
+            airtowater: '644600897679851',
+            roofing: '115682350112103',
+            generalbuilding: '115684923445179',
+            glazing: '115683430111995',
+        };
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const albumName = urlParams.get('albumName');
+
+        let albumId;
+        let photos = [];
+        let currentIndex = 0;
+
+        function getAlbumIdFromName(name) {
+            return albumNames[name.toLowerCase()] || null;
+        }
+
+        async function loadAlbum() {
+            albumId = getAlbumIdFromName(albumName);
+            if (!albumId) {
+                document.getElementById('carousel').innerHTML = '<div class="loading">Album not found.</div>';
+                return;
+            }
+
+            try {
+                const response = await fetch(`https://graph.facebook.com/v10.0/${albumId}?fields=name,photos.limit(1000){images,id}&access_token=EAAXVcjQK09UBO4BFECy1NwFyb1ycjZCowyryNslg5wXaUx2eREcprkZCdulNM6bzxpEeZCZC6jY963YxXnBj2MjZBxI9hZAPDZCPZASbcPnyg9XLLZAeDd7BdXfzGZBUNXFqKrpP4q4JbfjapxBZAuWQi1YRmdLE7oXG0MEyWakx2MR4j25MzGFkE685QZDZD`);
+                const data = await response.json();
+
+                if (data.error) {
+                    throw new Error(data.error.message);
+                }
+
+                document.getElementById('albumName').textContent = data.name || 'Untitled Album';
+                photos = data.photos ? data.photos.data : [];
+                document.getElementById('photoCount').textContent = `${photos.length} photos`;
+
+                if (photos.length > 0) {
+                    displayPhoto(currentIndex);
+                    preloadImages();
+                } else {
+                    document.getElementById('carousel').innerHTML = '<div class="loading">No photos found in this album.</div>';
+                }
+            } catch (error) {
+                document.getElementById('carousel').innerHTML = `<div class="loading">Error loading album: ${error.message}</div>`;
+                console.error('Error loading album:', error);
+            }
+        }
+
+        function displayPhoto(index) {
+            const carousel = document.getElementById('carousel');
+            const photo = photos[index];
+            if (photo && photo.images && photo.images.length > 0) {
+                carousel.innerHTML = `<img src="${photo.images[0].source}" alt="Photo ${index + 1}" data-id="${photo.id}">`;
+            } else {
+                carousel.innerHTML = '<div class="loading">Error loading photo.</div>';
+            }
+        }
+
+        function changeSlide(direction) {
+            if (photos.length === 0) return;
+            currentIndex += direction;
+            if (currentIndex < 0) currentIndex = photos.length - 1;
+            if (currentIndex >= photos.length) currentIndex = 0;
+            displayPhoto(currentIndex);
+        }
+
+        function preloadImages() {
+            photos.forEach((photo, index) => {
+                if (index !== currentIndex && photo.images && photo.images.length > 0) {
+                    const img = new Image();
+                    img.src = photo.images[0].source;
+                }
+            });
+        }
+
+        // Swipe functionality
+        let touchStartX = 0;
+        let touchEndX = 0;
+
+        document.querySelector('.carousel-container').addEventListener('touchstart', e => {
+            touchStartX = e.changedTouches[0].screenX;
+        });
+
+        document.querySelector('.carousel-container').addEventListener('touchend', e => {
+            touchEndX = e.changedTouches[0].screenX;
+            handleSwipe();
+        });
+
+        function handleSwipe() {
+            if (touchStartX - touchEndX > 50) {
+                changeSlide(1); // Swipe left
+            } else if (touchEndX - touchStartX > 50) {
+                changeSlide(-1); // Swipe right
+            }
+        }
+
+        // Load the album when the page is ready
+        document.addEventListener('DOMContentLoaded', loadAlbum);
+    </script>
+</body>
+</html>
